@@ -1,0 +1,61 @@
+import { HttpClient } from '@angular/common/http';
+import { Component, Input, OnInit, ViewChild } from '@angular/core';
+import { MapInfoWindow, MapMarker } from '@angular/google-maps';
+import { Observable, of } from 'rxjs';
+import { catchError, map } from 'rxjs/operators';
+import { City } from 'src/app/model/city.model';
+import { DataService } from 'src/app/services/data-service.service';
+import { environment } from 'src/environments/environment';
+
+@Component({
+  selector: 'app-map',
+  templateUrl: './map.component.html',
+  styleUrls: ['./map.component.scss']
+})
+export class MapComponent implements OnInit {
+
+  @Input()
+  cities: City[] = [];
+  apiLoaded?: Observable<boolean>;
+  mapOptions?: google.maps.MapOptions;
+  markerOptions?: google.maps.MarkerOptions;
+  @ViewChild(MapInfoWindow) infoWindow?: MapInfoWindow;
+  infoContent: City = {};
+  center?: google.maps.LatLng;
+
+  constructor(http: HttpClient, private dataService: DataService) {
+    this.apiLoaded = http.jsonp(`https://maps.googleapis.com/maps/api/js?key=${environment.gk}`, 'callback')
+      .pipe(map(() => true), catchError(() => of(false)));
+  }
+
+  ngOnInit(): void {
+    this.mapOptions = {
+      zoom: 4
+    };
+
+    this.markerOptions = {
+      draggable: false
+    };
+
+    this.dataService.selectedCity.subscribe(c => {
+      let myLatlng = new google.maps.LatLng(c.Latitude, c.Longitude);
+      this.center = myLatlng;
+      this.infoWindow?.close();
+    })
+  }
+
+  getMarkerPosition(city: City) {
+    const position = {
+      lat: city.Latitude,
+      lng: city.Longitude
+    };
+    return position as google.maps.LatLngLiteral;
+  }
+
+  openInfo(marker: MapMarker, city: City) {
+    this.infoContent = city;
+    this.infoWindow?.open(marker);
+    this.dataService.clearSelected.next(true);
+  }
+
+}
